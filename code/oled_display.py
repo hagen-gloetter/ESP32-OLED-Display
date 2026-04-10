@@ -1,4 +1,4 @@
-from machine import Pin, SoftI2C
+from machine import Pin, I2C, SoftI2C
 import ssd1306
 import time
 
@@ -13,14 +13,11 @@ def init_display(scl, sda):
     Returns:
         Configured SSD1306_I2C display object.
     """
-    i2c = SoftI2C(scl, sda)
-    # ESP8266 Pin assignment
-    #i2c = SoftI2C(scl=Pin(5), sda=Pin(4))
-    oled_width = 128
-    oled_height = 64
-    oled = ssd1306.SSD1306_I2C(oled_width, oled_height, i2c)
-    oled.text('init_display', 0, 0)
-    oled.show()
+    # ESP32: hardware I2C bus 0 – uses the hardware peripheral (faster, lower CPU load)
+    i2c = I2C(0, scl=scl, sda=sda, freq=400000)
+    # ESP8266: no hardware I2C peripheral – please change if you want to use an ESP8266
+    # i2c = SoftI2C(scl=scl, sda=sda, freq=400000)
+    oled = ssd1306.SSD1306_I2C(128, 64, i2c)
     return oled
 
 

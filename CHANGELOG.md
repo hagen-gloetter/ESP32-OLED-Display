@@ -8,6 +8,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased] – 2026-04-10
 
 ### Added
+- **Hardware I2C auf ESP32** (`oled_display.py`): Wechsel von `SoftI2C` auf
+  `machine.I2C(0, freq=400_000)` – nutzt den Hardware-I2C-Peripheral des ESP32
+  für geringere CPU-Last und stabileres Timing. Der ESP8266 hat keine Hardware-I2C-
+  Einheit; die kommentierte `SoftI2C`-Alternative bleibt erhalten.
+- **Mehrere WLANs in `secrets_wifi.json.example`**: Drei Beispieleinträge
+  (Home, Office, Hotspot) machen die JSON-Syntax für mehrere Netzwerke sofort
+  erkennbar.
+- **README Known Caveats überarbeitet**: CET/CEST und WebREPL (beides Features,
+  keine Einschränkungen) aus den Caveats entfernt. Neu dokumentiert: Hardware I2C
+  vs. SoftI2C (ESP8266), Zeitanzeige vor dem ersten NTP-Sync (2000-01-01),
+  ESP8266-RAM-Einschränkung. WebREPL-Zugangsdoku in den Usage-Abschnitt verschoben.
 - **Echtzeit-Uhr auf dem Display** (`main.py`): Die erste Zeile des OLED-Displays
   zeigt permanent die aktuelle Lokalzeit (`HH:MM:SS CET ` bzw. `HH:MM:SS CEST`) und
   wird jede Sekunde aktualisiert. Sommer-/Winterzeit (EU-Regel: letzter Sonntag im

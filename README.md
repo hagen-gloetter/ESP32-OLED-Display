@@ -30,7 +30,17 @@ This project provides ready-to-use MicroPython modules to:
 | VCC         | 3.3 V     |
 | GND         | GND       |
 
-> For ESP8266 change the pins to SCL = GPIO 5 and SDA = GPIO 4.
+### ESP8266 Pin Wiring (I2C)
+
+| Display Pin | ESP8266 Pin |
+|-------------|-------------|
+| SCL         | GPIO 5      |
+| SDA         | GPIO 4      |
+| VCC         | 3.3 V       |
+| GND         | GND         |
+
+> When using an ESP8266, uncomment the two `Pin(5)` / `Pin(4)` lines in
+> `code/main.py` and `code/oled_display.py` and comment out the ESP32 lines above them.
 
 ---
 
@@ -38,12 +48,22 @@ This project provides ready-to-use MicroPython modules to:
 
 ### 1. Flash MicroPython
 
-Download the latest MicroPython firmware for ESP32 from
-<https://micropython.org/download/esp32/> and flash it:
+**ESP32:**
+
+Download the latest firmware from <https://micropython.org/download/esp32/> and flash it:
 
 ```bash
 esptool.py --chip esp32 erase_flash
 esptool.py --chip esp32 --baud 460800 write_flash -z 0x1000 esp32-*.bin
+```
+
+**ESP8266:**
+
+Download the latest firmware from <https://micropython.org/download/esp8266/> and flash it:
+
+```bash
+esptool.py --chip esp8266 erase_flash
+esptool.py --chip esp8266 --baud 460800 write_flash --flash_size=detect 0x0 esp8266-*.bin
 ```
 
 ### 2. Install a file-transfer tool
@@ -147,6 +167,15 @@ ip = get_wifi_connection.get_ip()  # returns str or None
 get_wifi_connection.disconnect_wifi()
 ```
 
+**Access WebREPL:**
+
+After boot, WebREPL is reachable in the browser at:
+```
+ws://<ESP-IP>:8266
+```
+Use the [MicroPython WebREPL client](http://micropython.org/webrepl/) or Thonny
+(*Tools → Options → Interpreter → MicroPython (ESP32/ESP8266) → WebREPL*).
+
 ## Boot Sequence
 
 1. Display initialised
@@ -157,7 +186,7 @@ get_wifi_connection.disconnect_wifi()
 6. WebREPL started
 7. Main loop starts – every 10 seconds:
    - Connection checked via `get_ip()`
-   - If lost: **"WiFi lost!" + UTC time + error** shown on OLED → auto-reconnect
+   - If lost: **"WiFi lost!" + CET/CEST time + error** shown on OLED → auto-reconnect
    - After reconnect: IP shown for 5 seconds, then normal display resumes
 
 ---
@@ -189,11 +218,19 @@ get_wifi_connection.disconnect_wifi()
 
 ## Known Caveats
 
-- `SoftI2C` is used rather than hardware I2C driver – sufficient for a 400 kHz display bus but may be slower than `I2C`.
-- The WiFi module scans for all configured SSIDs and connects to the **first one found**. Adjust priority by ordering keys in `secrets_wifi.json`.
-- Connection timeout is set to **15 seconds** per network (`_CONNECT_TIMEOUT_MS` in `get_wifi_connection.py`).
-- Time shown on OLED is **UTC** (set via NTP after connect). No timezone conversion is applied.
-- WebREPL is accessible at `ws://<IP>:8266` using the [MicroPython WebREPL client](http://micropython.org/webrepl/) or a WebREPL-compatible tool (e.g. Thonny).
+- **Hardware I2C (ESP32 only):** The ESP32 uses the hardware I2C peripheral
+  (`I2C(0, freq=400_000)`) for lower CPU overhead and better timing stability.
+  The ESP8266 has no hardware I2C silicon; it falls back to `SoftI2C` – see
+  the commented lines in `code/oled_display.py`.
+- **WiFi connect order:** Networks are tried in the order they appear in
+  `secrets_wifi.json`. Put the most preferred network first.
+- **Connection timeout:** 15 seconds per network attempt. Configurable via
+  `_CONNECT_TIMEOUT_MS` in `get_wifi_connection.py`.
+- **Time before NTP sync:** Until `ntptime.settime()` succeeds, `time.localtime()`
+  returns **2000-01-01 00:00:00**. The clock on the OLED will show
+  `00:00:xx CET` until the first successful WiFi connect.
+- **ESP8266 RAM:** The ESP8266 has only ~35–45 KB free heap. The current
+  code fits comfortably, but keep this in mind when adding features.
 
 ---
 
