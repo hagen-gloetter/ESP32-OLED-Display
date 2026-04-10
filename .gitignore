@@ -3,6 +3,18 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# MicroPython compiled bytecode
+*.mpy
+
+# WiFi credentials – never commit
+secrets_wifi.json
+
+# WebREPL password – never commit
+webrepl_cfg.py
+
+# macOS metadata
+.DS_Store
+
 # C extensions
 *.so
 

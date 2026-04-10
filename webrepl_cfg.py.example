@@ -1,0 +1,5 @@
+# WebREPL password (8 characters minimum, max 9)
+# Copy this file to webrepl_cfg.py on your ESP32 flash,
+# then upload it alongside main.py.
+# NEVER commit webrepl_cfg.py – it is listed in .gitignore.
+PASS = 'changeme'
