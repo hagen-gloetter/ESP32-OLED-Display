@@ -100,6 +100,24 @@ class SSD1306:
     def text(self, string, x, y, col=1):
         self.framebuf.text(string, x, y, col)
 
+    def fill_rect(self, x, y, w, h, col):
+        self.framebuf.fill_rect(x, y, w, h, col)
+
+    def rect(self, x, y, w, h, col):
+        self.framebuf.rect(x, y, w, h, col)
+
+    def hline(self, x, y, w, col):
+        self.framebuf.hline(x, y, w, col)
+
+    def vline(self, x, y, h, col):
+        self.framebuf.vline(x, y, h, col)
+
+    def line(self, x1, y1, x2, y2, col):
+        self.framebuf.line(x1, y1, x2, y2, col)
+
+    def blit(self, fbuf, x, y, key=-1, palette=None):
+        self.framebuf.blit(fbuf, x, y, key, palette)
+
 
 class SSD1306_I2C(SSD1306):
     def __init__(self, width, height, i2c, addr=0x3c, external_vcc=False):
@@ -113,7 +131,7 @@ class SSD1306_I2C(SSD1306):
         # buffer).
         self.buffer = bytearray(((height // 8) * width) + 1)
         self.buffer[0] = 0x40  # Set first byte of data buffer to Co=0, D/C=1
-        self.framebuf = framebuf.FrameBuffer1(memoryview(self.buffer)[1:], width, height)
+        self.framebuf = framebuf.FrameBuffer(memoryview(self.buffer)[1:], width, height, framebuf.MONO_VLSB)
         super().__init__(width, height, external_vcc)
 
     def write_cmd(self, cmd):
@@ -141,7 +159,7 @@ class SSD1306_SPI(SSD1306):
         self.res = res
         self.cs = cs
         self.buffer = bytearray((height // 8) * width)
-        self.framebuf = framebuf.FrameBuffer1(self.buffer, width, height)
+        self.framebuf = framebuf.FrameBuffer(self.buffer, width, height, framebuf.MONO_VLSB)
         super().__init__(width, height, external_vcc)
 
     def write_cmd(self, cmd):

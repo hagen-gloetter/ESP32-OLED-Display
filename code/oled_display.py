@@ -1,4 +1,4 @@
-from machine import Pin, I2C, SoftI2C
+from machine import Pin, I2C  # SoftI2C needed only for ESP8266
 import ssd1306
 import time
 

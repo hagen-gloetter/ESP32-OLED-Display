@@ -1,4 +1,4 @@
-from machine import Pin
+from machine import Pin, reset
 import time
 import ntptime
 import webrepl
@@ -12,6 +12,17 @@ display_sda = Pin(21)  # ESP32
 # display_sda = Pin(4)  # ESP8266 – please change if you want to use an ESP8266
 oled = oled_display.init_display(display_scl, display_sda)
 
+_webrepl_started = False
+
+
+def _start_webrepl():
+    """Start WebREPL only once per boot (calling start() repeatedly is unsafe)."""
+    global _webrepl_started
+    if not _webrepl_started:
+        webrepl.start()
+        _webrepl_started = True
+        print("WebREPL started")
+
 
 def _show_ip(label="Connected!"):
     ip = get_wifi_connection.get_ip() or "unknown"
@@ -22,12 +33,16 @@ def _show_ip(label="Connected!"):
     time.sleep(5)
 
 
-def _sync_ntp():
-    try:
-        ntptime.settime()
-        print("NTP time synchronised")
-    except Exception as e:
-        print(f"NTP sync failed: {e}")
+def _sync_ntp(retries=3):
+    for attempt in range(retries):
+        try:
+            ntptime.settime()
+            print("NTP time synchronised")
+            return
+        except Exception as e:
+            print(f"NTP sync failed (attempt {attempt + 1}/{retries}): {e}")
+            if attempt < retries - 1:
+                time.sleep(2)
 
 
 def _is_dst():
@@ -72,8 +87,7 @@ try:
     get_wifi_connection.connect_wifi()
     _sync_ntp()
     _show_ip("Connected!")
-    webrepl.start()
-    print("WebREPL started")
+    _start_webrepl()
 except OSError as e:
     print(f"WiFi error: {e}")
     oled.fill(0)
@@ -86,39 +100,62 @@ except OSError as e:
 # Line 0  (y=0):  clock  HH:MM:SS CET/CEST  – updated every second
 # Lines below are free for application content
 _wifi_tick = 0
+_ntp_tick = 0
+_NTP_RESYNC_INTERVAL = 3600  # re-sync NTP every hour (in seconds)
+_CONSECUTIVE_ERRORS = 0
+_MAX_CONSECUTIVE_ERRORS = 30  # reset board after 30 consecutive failures
 
 while True:
-    # --- Refresh clock line (first 8 px row) ---
-    oled.fill_rect(0, 0, 128, 8, 0)
-    oled.text(_time_str(), 0, 0)
-    oled.show()
+    try:
+        # --- Refresh clock line (first 8 px row) ---
+        oled.fill_rect(0, 0, 128, 8, 0)
+        oled.text(_time_str(), 0, 0)
+        oled.show()
+        _CONSECUTIVE_ERRORS = 0  # display update succeeded
 
-    # --- Check WiFi every 10 seconds ---
-    _wifi_tick += 1
-    if _wifi_tick >= 10:
-        _wifi_tick = 0
-        if get_wifi_connection.get_ip() is None:
-            ts = _time_str()
-            print(f"WiFi lost at {ts} – reconnecting...")
-            oled.fill(0)
-            oled.text("WiFi lost!", 0, 0)
-            oled.text(ts, 0, 12)
-            oled.text("Reconnecting...", 0, 24)
-            oled.show()
-
-            try:
-                get_wifi_connection.ensure_wifi()
-                _sync_ntp()
-                webrepl.start()
-                _show_ip("Reconnected!")
-            except OSError as e:
+        # --- Check WiFi every 10 seconds ---
+        _wifi_tick += 1
+        if _wifi_tick >= 10:
+            _wifi_tick = 0
+            if get_wifi_connection.get_ip() is None:
                 ts = _time_str()
-                print(f"Reconnect failed at {ts}: {e}")
+                print(f"WiFi lost at {ts} – reconnecting...")
                 oled.fill(0)
                 oled.text("WiFi lost!", 0, 0)
                 oled.text(ts, 0, 12)
-                oled.text(str(e)[:16], 0, 24)
+                oled.text("Reconnecting...", 0, 24)
                 oled.show()
-                time.sleep(10)  # back-off before next retry
+
+                try:
+                    get_wifi_connection.ensure_wifi()
+                    _sync_ntp()
+                    _start_webrepl()
+                    _show_ip("Reconnected!")
+                except OSError as e:
+                    ts = _time_str()
+                    print(f"Reconnect failed at {ts}: {e}")
+                    oled.fill(0)
+                    oled.text("WiFi lost!", 0, 0)
+                    oled.text(ts, 0, 12)
+                    oled.text(str(e)[:16], 0, 24)
+                    oled.show()
+                    time.sleep(10)  # back-off before next retry
+
+        # --- Periodic NTP re-sync ---
+        _ntp_tick += 1
+        if _ntp_tick >= _NTP_RESYNC_INTERVAL:
+            _ntp_tick = 0
+            if get_wifi_connection.get_ip() is not None:
+                _sync_ntp(retries=1)
+
+    except Exception as e:
+        # Catch transient I2C / hardware errors to prevent permanent crash
+        _CONSECUTIVE_ERRORS += 1
+        print(f"Main loop error ({_CONSECUTIVE_ERRORS}): {e}")
+        if _CONSECUTIVE_ERRORS >= _MAX_CONSECUTIVE_ERRORS:
+            print("Too many consecutive errors – resetting board")
+            reset()
+        time.sleep(1)
+        continue
 
     time.sleep(1)

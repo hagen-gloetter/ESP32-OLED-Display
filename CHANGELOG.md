@@ -5,7 +5,62 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased] – 2026-04-10
+## [Unreleased]
+
+### Added
+
+#### `ssd1306.py`
+- **Vollständige FrameBuffer-Delegation:** `rect()`, `hline()`, `vline()`,
+  `line()` und `blit()` an die `SSD1306`-Basisklasse delegiert – alle
+  FrameBuffer-Zeichenoperationen sind nun direkt am Display-Objekt verfügbar.
+
+#### `main.py`
+- **Periodischer NTP-Re-Sync:** Die Uhrzeit wird jetzt stündlich erneut per
+  NTP synchronisiert (konfigurierbar über `_NTP_RESYNC_INTERVAL`).
+- **NTP-Retry:** `_sync_ntp()` versucht bis zu 3× mit 2 s Pause (statt
+  single-shot), um kurzfristige DNS-/Netzwerk-Ausfälle abzufangen.
+- **Hardware-Watchdog:** Bei ≥ 30 aufeinanderfolgenden Fehlern im Main-Loop
+  wird `machine.reset()` ausgelöst, um das Board aus einem dauerhaften
+  Fehlerzustand zu befreien.
+- **Exception-Handler im Main-Loop:** Transiente I2C-/Hardware-Fehler
+  crashen nicht mehr dauerhaft – nach einem kurzen Back-off läuft der Loop
+  weiter.
+
+### Fixed
+
+#### `ssd1306.py`
+- **Bug fix (missing `fill_rect` delegation):** Added `fill_rect()` method to
+  the `SSD1306` base class. The method was missing from the framebuffer
+  delegation layer, causing `AttributeError` at runtime when `main.py` called
+  `oled.fill_rect()` to clear the clock line.
+
+#### `main.py`
+- **WebREPL-Doppelstart vermieden:** `webrepl.start()` wird jetzt nur einmal
+  pro Boot aufgerufen (via `_start_webrepl()`). Wiederholte Aufrufe nach
+  Reconnect konnten zu internen Fehlern führen.
+
+### Changed
+
+#### `ssd1306.py`
+- **Deprecated API replaced:** Replaced `framebuf.FrameBuffer1` with
+  `framebuf.FrameBuffer(..., framebuf.MONO_VLSB)` in both `SSD1306_I2C` and
+  `SSD1306_SPI`. `FrameBuffer1` is deprecated in current MicroPython and may
+  be removed in a future release.
+
+#### `get_wifi_connection.py`
+- **CPU-Last reduziert:** `machine.idle()` im Connect-Busy-Wait durch
+  `time.sleep_ms(100)` ersetzt – definiert 100 ms Pause pro Iteration statt
+  undefiniertem Idle-Verhalten. `machine`-Import entfernt.
+- **Sauberes Disconnect:** `disconnect_wifi()` deaktiviert jetzt auch das
+  WLAN-Interface (`active(False)`), um Strom zu sparen.
+
+#### `oled_display.py`
+- Ungenutzten `SoftI2C`-Import aus der aktiven Import-Zeile entfernt (bleibt
+  als Kommentar für ESP8266-Nutzer erhalten).
+
+---
+
+## [0.1.0] – 2026-04-10
 
 ### Added
 - **Hardware I2C auf ESP32** (`oled_display.py`): Wechsel von `SoftI2C` auf

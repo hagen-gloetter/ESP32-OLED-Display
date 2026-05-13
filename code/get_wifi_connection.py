@@ -1,6 +1,5 @@
 import ujson
 import network
-import machine
 import time
 
 _CONNECT_TIMEOUT_MS = 15000
@@ -42,7 +41,7 @@ def connect_wifi():
                 if time.ticks_diff(time.ticks_ms(), start_ms) > _CONNECT_TIMEOUT_MS:
                     _wifi.disconnect()
                     raise OSError(f"Timeout connecting to '{ssid}'")
-                machine.idle()
+                time.sleep_ms(100)
             print(f"Connected to '{ssid}' – IP: {_wifi.ifconfig()[0]}")
             return
         except OSError as e:
@@ -72,9 +71,10 @@ def get_ip():
 
 
 def disconnect_wifi():
-    """Disconnect the active WiFi connection."""
+    """Disconnect the active WiFi connection and deactivate the interface."""
     global _wifi
     if _wifi is not None:
         print("Disconnecting WiFi...")
         _wifi.disconnect()
+        _wifi.active(False)
         _wifi = None
